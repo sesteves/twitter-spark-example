@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.spark.examples.streaming
+package pt.inescid.gsd.twitterstreaming
 
+import org.apache.spark.examples.streaming.StreamingExamples
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import StreamingContext._
 import org.apache.spark.SparkContext._
@@ -51,7 +52,7 @@ object TwitterPopularTags {
     System.setProperty("twitter4j.oauth.accessToken", accessToken)
     System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret)
 
-    val sparkConf = new SparkConf().setAppName("TwitterPopularTags")
+    val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
     val ssc = new StreamingContext(sparkConf, Seconds(2))
     val stream = TwitterUtils.createStream(ssc, None, filters)
 
