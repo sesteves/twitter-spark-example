@@ -53,31 +53,33 @@ object TwitterPopularTags {
     System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret)
 
     val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
+      .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar"))
+
     val ssc = new StreamingContext(sparkConf, Seconds(2))
     val stream = TwitterUtils.createStream(ssc, None, filters)
 
     val hashTags = stream.flatMap(status => status.getText.split(" ").filter(_.startsWith("#")))
 
     val topCounts60 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(60))
-                     .map{case (topic, count) => (count, topic)}
-                     .transform(_.sortByKey(false))
+      .map { case (topic, count) => (count, topic)}
+      .transform(_.sortByKey(false))
 
     val topCounts10 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
-                     .map{case (topic, count) => (count, topic)}
-                     .transform(_.sortByKey(false))
+      .map { case (topic, count) => (count, topic)}
+      .transform(_.sortByKey(false))
 
 
     // Print popular hashtags
     topCounts60.foreachRDD(rdd => {
       val topList = rdd.take(10)
       println("\nPopular topics in last 60 seconds (%s total):".format(rdd.count()))
-      topList.foreach{case (count, tag) => println("%s (%s tweets)".format(tag, count))}
+      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
     })
 
     topCounts10.foreachRDD(rdd => {
       val topList = rdd.take(10)
       println("\nPopular topics in last 10 seconds (%s total):".format(rdd.count()))
-      topList.foreach{case (count, tag) => println("%s (%s tweets)".format(tag, count))}
+      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
     })
 
     ssc.start()
