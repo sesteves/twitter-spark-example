@@ -58,17 +58,24 @@ object TwitterPopularTags {
       .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar"))
 
     val ssc = new StreamingContext(sparkConf, Seconds(2))
-    val stream = TwitterUtils.createStream(ssc, None, filters)
+//    val stream = TwitterUtils.createStream(ssc, None, filters)
+//
+//    stream.map(status => status.getText).foreachRDD((rdd, time) => {
+//      val pw = new PrintWriter(new FileWriter("twitter-dump.txt", true))
+//      val tweets = rdd.collect()
+//      tweets.foreach(pw.println)
+//      pw.close()
+//    })
 
+    val distFile = ssc.textFileStream("twitter-dump.txt")
 
-    stream.map(status => status.getText).foreachRDD((rdd, time) => {
-      val tweets = rdd.collect()
-
-      val pw = new PrintWriter("twitter-dump.txt")
-      tweets.foreach(pw.println)
-      pw.close()
-
+    distFile.foreachRDD(rdd => {
+      println("RDD COUNT: " + rdd.count)
+      rdd.foreach(str => println("------------------>" + str))
     })
+
+    // val hashTags = distFile.flatMap(str => str.split(" ").filter(_.startsWith("#")))
+
 
     //    var gson = new Gson()
     //
@@ -92,28 +99,29 @@ object TwitterPopularTags {
     //    })
 
 
-    val hashTags = stream.flatMap(status => status.getText.split(" ").filter(_.startsWith("#")))
+    // val hashTags = stream.flatMap(status => status.getText.split(" ").filter(_.startsWith("#")))
 
-    val topCounts60 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(60))
-      .map { case (topic, count) => (count, topic)}
-      .transform(_.sortByKey(false))
-
-    val topCounts10 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
-      .map { case (topic, count) => (count, topic)}
-      .transform(_.sortByKey(false))
-
-
-    // Print popular hashtags
-    topCounts60.foreachRDD((rdd, time) => {
-      val topList = rdd.take(10)
-      println("\nPopular topics in last 60 seconds (%s total):".format(rdd.count()))
-      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
-    })
-
-    topCounts10.foreachRDD((rdd, time) => {
-      val topList = rdd.take(10)
-      println("\nPopular topics in last 10 seconds (%s total):".format(rdd.count()))
-    })
+//    val topCounts60 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(60))
+//      .map { case (topic, count) => (count, topic)}
+//      .transform(_.sortByKey(false))
+//
+//    val topCounts10 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
+//      .map { case (topic, count) => (count, topic)}
+//      .transform(_.sortByKey(false))
+//
+//
+//    // Print popular hashtags
+//    topCounts60.foreachRDD((rdd, time) => {
+//      val topList = rdd.take(10)
+//      println("\nPopular topics in last 60 seconds (%s total):".format(rdd.count()))
+//      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
+//    })
+//
+//    topCounts10.foreachRDD((rdd, time) => {
+//      val topList = rdd.take(10)
+//      println("\nPopular topics in last 10 seconds (%s total):".format(rdd.count()))
+//      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
+//    })
 
     ssc.start()
     ssc.awaitTermination()

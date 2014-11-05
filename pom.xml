@@ -76,6 +76,12 @@
                             <filters>
                                 <filter>
                                     <artifact>*:*</artifact>
+                                    <includes>
+                                        <include>pt/**</include>
+                                        <include>com/twitter/**</include>
+                                        <include>org/apache/spark/streaming/twitter/**</include>
+                                        <include>twitter4j/**</include>
+                                    </includes>
                                     <excludes>
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
