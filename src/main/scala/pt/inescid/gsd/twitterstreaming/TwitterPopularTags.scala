@@ -17,13 +17,8 @@
 
 package pt.inescid.gsd.twitterstreaming
 
-import java.io._
-
 import org.apache.spark.examples.streaming.StreamingExamples
 import org.apache.spark.streaming.{Seconds, StreamingContext}
-import StreamingContext._
-import org.apache.spark.SparkContext._
-import org.apache.spark.streaming.twitter._
 import org.apache.spark.SparkConf
 
 /**
@@ -58,14 +53,6 @@ object TwitterPopularTags {
       .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar"))
 
     val ssc = new StreamingContext(sparkConf, Seconds(2))
-//    val stream = TwitterUtils.createStream(ssc, None, filters)
-//
-//    stream.map(status => status.getText).foreachRDD((rdd, time) => {
-//      val pw = new PrintWriter(new FileWriter("twitter-dump.txt", true))
-//      val tweets = rdd.collect()
-//      tweets.foreach(pw.println)
-//      pw.close()
-//    })
 
     val distFile = ssc.textFileStream("twitter-dump.txt")
 
@@ -75,29 +62,6 @@ object TwitterPopularTags {
     })
 
     // val hashTags = distFile.flatMap(str => str.split(" ").filter(_.startsWith("#")))
-
-
-    //    var gson = new Gson()
-    //
-    //    val partitionsEachInterval = 10
-    //    val outputDirectory = "."
-    //    val numTweetsToCollect = 100
-    //    var numTweetsCollected = 0L
-    //
-    //    stream.map(gson.toJson(_)).filter(!_.contains("boundingBoxCoordinates"))
-    //
-    //    stream.foreachRDD((rdd, time) => {
-    //      val count = rdd.count()
-    //      if (count > 0) {
-    //        val outputRDD = rdd.repartition(partitionsEachInterval)
-    //        outputRDD.saveAsTextFile(outputDirectory + "/tweets_" + time.milliseconds.toString)
-    //        numTweetsCollected += count
-    //        if (numTweetsCollected > numTweetsToCollect) {
-    //          System.exit(0)
-    //        }
-    //      }
-    //    })
-
 
     // val hashTags = stream.flatMap(status => status.getText.split(" ").filter(_.startsWith("#")))
 
