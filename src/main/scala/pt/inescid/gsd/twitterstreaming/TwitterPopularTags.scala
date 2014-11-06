@@ -54,7 +54,7 @@ object TwitterPopularTags {
 
     val ssc = new StreamingContext(sparkConf, Seconds(2))
 
-    val distFile = ssc.textFileStream("/home/sesteves/twitter-spark-example/twitter-dump.txt")
+    val distFile = ssc.textFileStream("twitter-dump.txt")
 
     distFile.foreachRDD(rdd => {
       println("RDD COUNT: " + rdd.count)
