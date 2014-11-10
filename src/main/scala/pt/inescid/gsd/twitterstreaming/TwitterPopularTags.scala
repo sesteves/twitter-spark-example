@@ -54,16 +54,20 @@ object TwitterPopularTags {
     val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
       .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar"))
 
-    val ssc = new StreamingContext(sparkConf, Seconds(10))
-
+    val ssc = new StreamingContext(sparkConf, Seconds(5))
     val distFile = ssc.textFileStream("/home/sesteves/twitter-spark-example/twitter-dump")
 
-    val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
+    // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
 
     val words = distFile.flatMap(_.split(" "))
-    val wordCounts = words.map(x => (x, 1)).reduceByKey(_+_)
-    wordCounts.print()
+    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
+    wordCounts.foreachRDD(rdd => {
+      val topList = rdd.take(10)
+      println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
+      topList.foreach(println)
+    })
+
 
 
 
@@ -71,9 +75,9 @@ object TwitterPopularTags {
 //      .map { case (topic, count) => (count, topic)}
 //      .transform(_.sortByKey(false))
 
-    val topCounts10 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
-      .map { case (topic, count) => (count, topic)}
-      .transform(_.sortByKey(false))
+//    val topCounts10 = hashTags.map((_, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
+//      .map { case (topic, count) => (count, topic)}
+//      .transform(_.sortByKey(false))
 
 
     // Print popular hashtags
@@ -83,11 +87,11 @@ object TwitterPopularTags {
 //      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
 //    })
 
-    topCounts10.foreachRDD((rdd, time) => {
-      val topList = rdd.take(10)
-      println("\nPopular topics in last 10 seconds (%s total):".format(rdd.count()))
-      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
-    })
+//    topCounts10.foreachRDD((rdd, time) => {
+//      val topList = rdd.take(10)
+//      println("\nPopular topics in last 10 seconds (%s total):".format(rdd.count()))
+//      topList.foreach { case (count, tag) => println("%s (%s tweets)".format(tag, count))}
+//    })
 
     ssc.start()
     ssc.awaitTermination()
