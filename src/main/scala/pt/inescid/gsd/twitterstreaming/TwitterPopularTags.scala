@@ -60,8 +60,12 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
 
-    val words = distFile.flatMap(_.split(" "))
-    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10)).transform(_.sortByKey(false))
+    // clustering or census sampling techniques
+    var skip = true
+    val words = distFile.flatMap(_.split(" ")).filter((word) => {skip = !skip; skip} )
+
+    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
+      .map{case (word, count) => (count, word)}.transform(_.sortByKey(false))
     wordCounts.foreachRDD(rdd => {
       val topList = rdd.take(10)
       println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
