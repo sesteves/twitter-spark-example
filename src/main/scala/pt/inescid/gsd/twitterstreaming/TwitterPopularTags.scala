@@ -61,7 +61,7 @@ object TwitterPopularTags {
 
 
     val words = distFile.flatMap(_.split(" "))
-    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
+    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10)).transform(_.sortByKey(false))
     wordCounts.foreachRDD(rdd => {
       val topList = rdd.take(10)
       println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
