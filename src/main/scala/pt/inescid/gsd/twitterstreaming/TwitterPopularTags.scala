@@ -23,6 +23,9 @@ import StreamingContext._
 import org.apache.spark.SparkContext._
 import org.apache.spark.streaming.twitter._
 import org.apache.spark.SparkConf
+
+import scala.util.Random
+
 /**
  * Calculates popular hashtags (topics) over sliding 10 and 60 second windows from a Twitter
  * stream. The stream is instantiated with credentials and optionally filters supplied by the
@@ -59,11 +62,8 @@ object TwitterPopularTags {
 
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
-
     // clustering or census sampling techniques
-    var skip = true
-    val words = distFile.flatMap(_.split(" ")).filter((word) => {skip = !skip; skip} )
-
+    val words = distFile.flatMap(_.split(" ")).filter((word) => {Random.nextInt(3) == 0} )
     val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
       .map{case (word, count) => (count, word)}.transform(_.sortByKey(false))
     wordCounts.foreachRDD(rdd => {
