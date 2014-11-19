@@ -63,15 +63,23 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
     // clustering or census sampling techniques
-    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3).filter((word) => {Random.nextInt(2) == 0} )
+    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3).filter((word) => {Random.nextInt(16) == 0} )
 
 
     val wordCharValues = words.map(word => {
       var sum = 0
       word.toCharArray.foreach(sum += _.toInt)
-      (sum.toDouble / word.length.toDouble, 1)
+      (sum)
     })
+      .reduceByWindow(max, Seconds(10), Seconds(10))
+
+
+
+
       .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
+
+
+
 
     wordCharValues.foreachRDD(rdd => {
       val result = rdd.take(1)
@@ -83,6 +91,27 @@ object TwitterPopularTags {
 
       topList.foreach(println)
     })
+
+
+
+// AVERAGE
+    //    val wordCharValues = words.map(word => {
+//      var sum = 0
+//      word.toCharArray.foreach(sum += _.toInt)
+//      (sum.toDouble / word.length.toDouble, 1)
+//    })
+//      .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
+//
+//    wordCharValues.foreachRDD(rdd => {
+//      val result = rdd.take(1)
+//      val topList = rdd.take(10)
+//
+//      println("Result array size: " + result.size)
+//      if(result.size > 0)
+//        println("Average word char value: %f".format((result(0)._1.toDouble / result(0)._2.toDouble)))
+//
+//      topList.foreach(println)
+//    })
 
 //    COUNT
 //    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
