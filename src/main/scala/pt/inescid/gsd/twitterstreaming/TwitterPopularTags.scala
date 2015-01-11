@@ -63,31 +63,56 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
     // clustering or census sampling techniques
-    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3).filter((word) => {Random.nextInt(16) == 0} )
+    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3) // .filter((word) => {Random.nextInt(16) == 0} )
 
 
+    // STDEV
     val wordCharValues = words.map(word => {
       var sum = 0
       word.toCharArray.foreach(sum += _.toInt)
       val value = sum.toDouble / word.length.toDouble
-      (value)
+      val average = 1892.162961
+      (math.pow(value - average, 2), 1)
     })
-      .transform(_.sortBy(c => c, true))
+      .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
 
     wordCharValues.foreachRDD(rdd => {
-      val result = rdd.collect()
+      val result = rdd.take(1)
+      val topList = rdd.take(10)
 
       println("Result array size: " + result.size)
-      if(result.size > 0) {
-        var median = 0.0
-        if(result.size % 2 == 0)
-          median = (result(result.size / 2 - 1) + result(result.size / 2)) / 2
-        else
-          median = result(result.size / 2)
-        println("First: %f, Median: %f, Last: %f".format(result.head, median, result.last))
-      }
+      if(result.size > 0)
+        println("STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
 
+      topList.foreach(println)
     })
+
+
+
+
+
+
+// MEDIAN
+//    val wordCharValues = words.map(word => {
+//      var sum = 0
+//      word.toCharArray.foreach(sum += _.toInt)
+//      val value = sum.toDouble / word.length.toDouble
+//      (value)
+//    })
+//      .transform(_.sortBy(c => c, true))
+//
+//    wordCharValues.foreachRDD(rdd => {
+//      val result = rdd.collect()
+//      println("Result array size: " + result.size)
+//      if(result.size > 0) {
+//        var median = 0.0
+//        if(result.size % 2 == 0)
+//          median = (result(result.size / 2 - 1) + result(result.size / 2)) / 2
+//        else
+//          median = result(result.size / 2)
+//        println("First: %f, Median: %f, Last: %f".format(result.head, median, result.last))
+//      }
+//    })
 
     // STDEV
 //    val wordCharValues = words.map(word => {
