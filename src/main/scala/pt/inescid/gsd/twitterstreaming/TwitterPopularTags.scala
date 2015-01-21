@@ -77,7 +77,10 @@ object TwitterPopularTags {
       .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
 
     wordCharValues.foreachRDD(rdd => {
+      val startTick = System.currentTimeMillis()
       val result = rdd.take(1)
+      val timeDiff = System.currentTimeMillis() - startTick
+
       val topList = rdd.take(10)
 
       println("Result array size: " + result.size)
