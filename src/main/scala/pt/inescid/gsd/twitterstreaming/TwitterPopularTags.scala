@@ -36,16 +36,16 @@ import scala.util.Random
  */
 object TwitterPopularTags {
   def main(args: Array[String]) {
-    if (args.length < 4) {
+    if (args.length < 7) {
       System.err.println("Usage: TwitterPopularTags <consumer key> <consumer secret> " +
-        "<access token> <access token secret> [<filters>]")
+        "<access token> <access token secret> <operation> <filter> <cores> <filters>]")
       System.exit(1)
     }
 
     StreamingExamples.setStreamingLogLevels()
 
-    val Array(consumerKey, consumerSecret, accessToken, accessTokenSecret) = args.take(4)
-    val filters = args.takeRight(args.length - 4)
+    val Array(consumerKey, consumerSecret, accessToken, accessTokenSecret, operation, filter, cores) = args.take(7)
+    val filters = args.takeRight(args.length - 7)
 
     // Set the system properties so that Twitter4j library used by twitter stream
     // can use them to generat OAuth credentials
@@ -55,7 +55,7 @@ object TwitterPopularTags {
     System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret)
 
     val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
-      .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar"))
+      .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar")).set("spark.cores.max", cores)
 
     val ssc = new StreamingContext(sparkConf, Seconds(5))
     val distFile = ssc.textFileStream("/home/sesteves/twitter-spark-example/twitter-dump")
@@ -63,138 +63,142 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
     // clustering or census sampling techniques
-    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3) // .filter((word) => {Random.nextInt(16) == 0} )
+    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3).filter((word) => {Random.nextInt(filter.toInt) == 0} )
 
 
-    // STDEV
-    val wordCharValues = words.map(word => {
-      var sum = 0
-      word.toCharArray.foreach(sum += _.toInt)
-      val value = sum.toDouble / word.length.toDouble
-      val average = 1892.162961
-      (math.pow(value - average, 2), 1)
-    })
-      .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
+    if("count".equals(operation)) {
+      val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
+        .map { case (word, count) => (count, word)}.transform(_.sortByKey(false))
+      wordCounts.foreachRDD(rdd => {
+        val startTick = System.currentTimeMillis()
+        val topList = rdd.take(10)
+        val timeDiff = System.currentTimeMillis() - startTick
+        println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
+        topList.foreach(println)
+        println("Time taken: %l".format(timeDiff))
+      })
+    }
 
-    wordCharValues.foreachRDD(rdd => {
-      val startTick = System.currentTimeMillis()
-      val result = rdd.take(1)
-      val timeDiff = System.currentTimeMillis() - startTick
+    else if("average".equals(operation)) {
+          val wordCharValues = words.map(word => {
+            var sum = 0
+            word.toCharArray.foreach(sum += _.toInt)
+            (sum.toDouble / word.length.toDouble, 1)
+          })
+            .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
 
-      val topList = rdd.take(10)
+          wordCharValues.foreachRDD(rdd => {
+            val startTick = System.currentTimeMillis()
+            val result = rdd.take(1)
+            val timeDiff = System.currentTimeMillis() - startTick
+            val topList = rdd.take(10)
 
-      println("Result array size: " + result.size)
-      if(result.size > 0)
-        println("STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
+            println("Result array size: " + result.size)
+            if(result.size > 0)
+              println("Average word char value: %f".format((result(0)._1.toDouble / result(0)._2.toDouble)))
 
-      topList.foreach(println)
-    })
+            topList.foreach(println)
+            println("Time taken: %l".format(timeDiff))
+          })
+    }
+
+    else if("max".equals(operation)) {
+
+          val wordCharValues = words.map(word => {
+            var sum = 0
+            word.toCharArray.foreach(sum += _.toInt)
+            (sum)
+          })
+            .reduceByWindow(math.max, Seconds(10), Seconds(10))
+
+          wordCharValues.foreachRDD(rdd => {
+            val startTick = System.currentTimeMillis()
+            val result = rdd.take(1)
+            val timeDiff = System.currentTimeMillis() - startTick
+            val topList = rdd.take(10)
+            println("Result array size: " + result.size)
+            if(result.size > 0)
+              println("Max word char value: %d".format(result(0)))
+            topList.foreach(println)
+            println("Time taken: %l".format(timeDiff))
+          })
+    }
+
+    else if("sum".equals(operation)) {
+
+          val wordCharValues = words.map(_.length).reduceByWindow(_+_, Seconds(10), Seconds(10))
+          wordCharValues.foreachRDD(rdd => {
+            val startTick = System.currentTimeMillis()
+            val result = rdd.take(1)
+            val timeDiff = System.currentTimeMillis() - startTick
+            val topList = rdd.take(10)
+            println("Result array size: " + result.size)
+            if(result.size > 0)
+              println("Sum of word lengths: %d".format(result(0)))
+            topList.foreach(println)
+            println("Time taken: %l".format(timeDiff))
+          })
+    }
+
+    else if("stdev".equals(operation)) {
+
+      val wordCharValues = words.map(word => {
+        var sum = 0
+        word.toCharArray.foreach(sum += _.toInt)
+        val value = sum.toDouble / word.length.toDouble
+        val average = 1892.162961
+        (math.pow(value - average, 2), 1)
+      })
+        .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
+
+      wordCharValues.foreachRDD(rdd => {
+        val startTick = System.currentTimeMillis()
+        val result = rdd.take(1)
+        val timeDiff = System.currentTimeMillis() - startTick
+
+        val topList = rdd.take(10)
+
+        println("Result array size: " + result.size)
+        if(result.size > 0)
+          println("STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
+
+        topList.foreach(println)
+        println("Time taken: %l".format(timeDiff))
+      })
+
+    }
+
+    else if("median".equals(operation)) {
+
+          val wordCharValues = words.map(word => {
+            var sum = 0
+            word.toCharArray.foreach(sum += _.toInt)
+            val value = sum.toDouble / word.length.toDouble
+            (value)
+          })
+            .transform(_.sortBy(c => c, true))
+
+          wordCharValues.foreachRDD(rdd => {
+            val startTick = System.currentTimeMillis()
+            val result = rdd.collect()
+            val timeDiff = System.currentTimeMillis() - startTick
+            println("Result array size: " + result.size)
+            if(result.size > 0) {
+              var median = 0.0
+              if(result.size % 2 == 0)
+                median = (result(result.size / 2 - 1) + result(result.size / 2)) / 2
+              else
+                median = result(result.size / 2)
+              println("First: %f, Median: %f, Last: %f".format(result.head, median, result.last))
+              println("Time taken: %l".format(timeDiff))
+            }
+          })
+    }
 
 
 
 
 
-
-// MEDIAN
-//    val wordCharValues = words.map(word => {
-//      var sum = 0
-//      word.toCharArray.foreach(sum += _.toInt)
-//      val value = sum.toDouble / word.length.toDouble
-//      (value)
-//    })
-//      .transform(_.sortBy(c => c, true))
-//
-//    wordCharValues.foreachRDD(rdd => {
-//      val result = rdd.collect()
-//      println("Result array size: " + result.size)
-//      if(result.size > 0) {
-//        var median = 0.0
-//        if(result.size % 2 == 0)
-//          median = (result(result.size / 2 - 1) + result(result.size / 2)) / 2
-//        else
-//          median = result(result.size / 2)
-//        println("First: %f, Median: %f, Last: %f".format(result.head, median, result.last))
-//      }
-//    })
-
-    // STDEV
-//    val wordCharValues = words.map(word => {
-//      var sum = 0
-//      word.toCharArray.foreach(sum += _.toInt)
-//      val value = sum.toDouble / word.length.toDouble
-//      val average = 1892.162961
-//      (math.pow(value - average, 2), 1)
-//    })
-//      .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
-//
-//    wordCharValues.foreachRDD(rdd => {
-//      val result = rdd.take(1)
-//      val topList = rdd.take(10)
-//
-//      println("Result array size: " + result.size)
-//      if(result.size > 0)
-//        println("STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
-//
-//      topList.foreach(println)
-//    })
-
-    // SUM
-//    val wordCharValues = words.map(_.length).reduceByWindow(_+_, Seconds(10), Seconds(10))
-//    wordCharValues.foreachRDD(rdd => {
-//      val result = rdd.take(1)
-//      val topList = rdd.take(10)
-//      println("Result array size: " + result.size)
-//      if(result.size > 0)
-//        println("Sum of word lengths: %d".format(result(0)))
-//      topList.foreach(println)
-//    })
-
-
-// MAX
-//    val wordCharValues = words.map(word => {
-//      var sum = 0
-//      word.toCharArray.foreach(sum += _.toInt)
-//      (sum)
-//    })
-//      .reduceByWindow(math.max, Seconds(10), Seconds(10))
-//
-//    wordCharValues.foreachRDD(rdd => {
-//      val result = rdd.take(1)
-//      val topList = rdd.take(10)
-//      println("Result array size: " + result.size)
-//      if(result.size > 0)
-//        println("Max word char value: %d".format(result(0)))
-//      topList.foreach(println)
-//    })
-
-
-// AVERAGE
-    //    val wordCharValues = words.map(word => {
-//      var sum = 0
-//      word.toCharArray.foreach(sum += _.toInt)
-//      (sum.toDouble / word.length.toDouble, 1)
-//    })
-//      .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
-//
-//    wordCharValues.foreachRDD(rdd => {
-//      val result = rdd.take(1)
-//      val topList = rdd.take(10)
-//
-//      println("Result array size: " + result.size)
-//      if(result.size > 0)
-//        println("Average word char value: %f".format((result(0)._1.toDouble / result(0)._2.toDouble)))
-//
-//      topList.foreach(println)
-//    })
-
-//    COUNT
-//    val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_+_, Seconds(10))
-//      .map{case (word, count) => (count, word)}.transform(_.sortByKey(false))
-//    wordCounts.foreachRDD(rdd => {
-//      val topList = rdd.take(10)
-//      println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
-//      topList.foreach(println)
-//    })
 
 
 
