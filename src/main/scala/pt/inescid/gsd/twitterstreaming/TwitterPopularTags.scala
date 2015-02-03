@@ -75,7 +75,7 @@ object TwitterPopularTags {
         val timeDiff = System.currentTimeMillis() - startTick
         println("Popular words in the last 10 seconds (%s total)".format(rdd.count()))
         topList.foreach(println)
-        println("Time taken: %l".format(timeDiff))
+        println("Time taken: %d".format(timeDiff))
       })
     }
 
@@ -98,7 +98,7 @@ object TwitterPopularTags {
               println("Average word char value: %f".format((result(0)._1.toDouble / result(0)._2.toDouble)))
 
             topList.foreach(println)
-            println("Time taken: %l".format(timeDiff))
+            println("Time taken: %d".format(timeDiff))
           })
     }
 
@@ -120,7 +120,7 @@ object TwitterPopularTags {
             if(result.size > 0)
               println("Max word char value: %d".format(result(0)))
             topList.foreach(println)
-            println("Time taken: %l".format(timeDiff))
+            println("Time taken: %d".format(timeDiff))
           })
     }
 
@@ -136,7 +136,7 @@ object TwitterPopularTags {
             if(result.size > 0)
               println("Sum of word lengths: %d".format(result(0)))
             topList.foreach(println)
-            println("Time taken: %l".format(timeDiff))
+            println("Time taken: %d".format(timeDiff))
           })
     }
 
@@ -163,7 +163,7 @@ object TwitterPopularTags {
           println("STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
 
         topList.foreach(println)
-        println("Time taken: %l".format(timeDiff))
+        println("Time taken: %d".format(timeDiff))
       })
 
     }
@@ -190,7 +190,7 @@ object TwitterPopularTags {
               else
                 median = result(result.size / 2)
               println("First: %f, Median: %f, Last: %f".format(result.head, median, result.last))
-              println("Time taken: %l".format(timeDiff))
+              println("Time taken: %d".format(timeDiff))
             }
           })
     }
