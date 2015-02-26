@@ -54,8 +54,10 @@ object TwitterPopularTags {
     System.setProperty("twitter4j.oauth.accessToken", accessToken)
     System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret)
 
+    // https://spark.apache.org/docs/1.1.1/monitoring.html
     val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
       .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar")).set("spark.cores.max", cores)
+      .set("spark.eventLog.enabled", true.toString)
 
     val ssc = new StreamingContext(sparkConf, Seconds(5))
     val distFile = ssc.textFileStream("/home/sesteves/twitter-spark-example/twitter-dump")
