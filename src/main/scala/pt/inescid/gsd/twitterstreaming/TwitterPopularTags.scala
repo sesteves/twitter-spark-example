@@ -35,6 +35,22 @@ import scala.util.Random
  *
  */
 object TwitterPopularTags {
+
+  def fib2( n : BigInt ) : BigInt = {
+    var a = 0
+    var b = 1
+    var i = 0
+
+    while( i < n ) {
+      val c = a + b
+      a = b
+      b = c
+      i = i + 1
+    }
+    return a
+  }
+
+
   def main(args: Array[String]) {
     if (args.length < 7) {
       System.err.println("Usage: TwitterPopularTags <consumer key> <consumer secret> " +
@@ -57,7 +73,7 @@ object TwitterPopularTags {
     // https://spark.apache.org/docs/1.1.1/monitoring.html
     val sparkConf = new SparkConf().setMaster("spark://ginja-A1:7077").setAppName("TwitterPopularTags")
       .setJars(Array("target/twitter-spark-example-1.0-SNAPSHOT.jar")).set("spark.cores.max", cores)
-      .set("spark.eventLog.enabled", true.toString)
+      .set("spark.eventLog.enabled", true.toString).set("spark.executor.cores", cores)
 
     val ssc = new StreamingContext(sparkConf, Seconds(5))
     val distFile = ssc.textFileStream("/home/sesteves/twitter-spark-example/twitter-dump")
@@ -65,8 +81,8 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
     // clustering or census sampling techniques
-    val words = distFile.flatMap(_.split(" ")).filter(_.length > 3).filter((word) => {Random.nextInt(filter.toInt) == 0} )
-
+    val words = distFile.repartition(cores.toInt).flatMap(_.split(" ")).filter(_.length > 3)
+      .filter((word) => {Random.nextInt(filter.toInt) == 0} )
 
     if("count".equals(operation)) {
       val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
@@ -146,9 +162,11 @@ object TwitterPopularTags {
 
       val wordCharValues = words.map(word => {
         var sum = 0
-        word.toCharArray.foreach(sum += _.toInt)
+        word.toCharArray.foreach(c => {sum += c.toInt}) // fib2(c.toInt)
         val value = sum.toDouble / word.length.toDouble
         val average = 1892.162961
+
+
         (math.pow(value - average, 2), 1)
       })
         .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)}, Seconds(10), Seconds(10))
@@ -168,6 +186,17 @@ object TwitterPopularTags {
         println("Time taken: %d".format(timeDiff))
       })
 
+    }
+
+    else if("mean2".equals(operation)) {
+      val wordCharValues = words.map(word => {
+        var sum = 0
+        word.toCharArray.foreach(c => {sum += c.toInt}) // fib2(c.toInt)
+        sum.toDouble / word.length.toDouble
+      }).foreachRDD(rdd => {
+
+        println("MEAN2: " + rdd.mean())
+      })
     }
 
     else if("median".equals(operation)) {
