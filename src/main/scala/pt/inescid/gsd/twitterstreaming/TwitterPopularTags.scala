@@ -81,8 +81,8 @@ object TwitterPopularTags {
     // val hashTags = distFile.flatMap(status => status.split(" ").filter(_.startsWith("#")))
 
     // clustering or census sampling techniques
-    val words = distFile.repartition(cores.toInt).flatMap(_.split(" ")).filter(_.length > 3)
-      .filter((word) => {Random.nextInt(filter.toInt) == 0} )
+    //val words = distFile.transform(_.coalesce(cores.toInt)).flatMap(_.split(" "))
+    val words = distFile.repartition(cores.toInt).filter(_.length > 3).filter((word) => Random.nextInt(filter.toInt) == 0)
 
     if("count".equals(operation)) {
       val wordCounts = words.map(x => (x, 1)).reduceByKeyAndWindow(_ + _, Seconds(10))
@@ -162,7 +162,7 @@ object TwitterPopularTags {
 
       val wordCharValues = words.map(word => {
         var sum = 0
-        word.toCharArray.foreach(c => {sum += c.toInt}) // fib2(c.toInt)
+        word.toCharArray.foreach(c => {sum += c.toInt; fib2(c.toInt)})
         val value = sum.toDouble / word.length.toDouble
         val average = 1892.162961
 
